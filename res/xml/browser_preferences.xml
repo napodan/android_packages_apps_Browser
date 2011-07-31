@@ -40,6 +40,11 @@
                 android:key="show_zoom_controls"
                 android:defaultValue="true"
                 android:title="@string/pref_show_zoom_controls" />
+
+        <CheckBoxPreference
+                android:key="set_text_reflow"
+                android:defaultValue="true"
+                android:title="@string/pref_set_text_reflow" />
                 
         <CheckBoxPreference
                 android:key="full_screen_mode"
