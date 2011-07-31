@@ -93,6 +93,7 @@ class BrowserSettings extends Observable {
     private boolean loadsPageInOverviewMode;
     private boolean showDebugSettings;
     private boolean showZoomControls = true;
+    private boolean setTextReflow = true;
     private boolean fullScreen = false;
     
     // HTML5 API flags
@@ -270,6 +271,7 @@ class BrowserSettings extends Observable {
             s.setPageCacheCapacity(pageCacheCapacity);
             
             s.showZoomControls(b.showZoomControls);
+            s.setTextReflow(b.setTextReflow);
 
             // WebView inside Browser doesn't want initial focus to be set.
             s.setNeedInitialFocus(false);
@@ -391,6 +393,7 @@ class BrowserSettings extends Observable {
         autoFitPage = p.getBoolean("autofit_pages", autoFitPage);
         
         showZoomControls = p.getBoolean("show_zoom_controls", showZoomControls);
+        setTextReflow = p.getBoolean("set_text_reflow", setTextReflow);
         fullScreen = p.getBoolean("full_screen_mode", fullScreen);
         
         loadsPageInOverviewMode = p.getBoolean("load_page",
