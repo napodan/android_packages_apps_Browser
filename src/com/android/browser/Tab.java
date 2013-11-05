@@ -1856,6 +1856,9 @@ class Tab {
         // FIXME: The only place we cared about subwindow was for
         // bookmarking (i.e. not when saving state). Was this deliberate?
         final WebBackForwardList list = mMainView.copyBackForwardList();
+        if (list == null) {
+            Log.w(LOGTAG, "populatePickerData called and WebBackForwardList is null");
+        }
         final WebHistoryItem item = list != null ? list.getCurrentItem() : null;
         populatePickerData(item);
     }
@@ -1863,7 +1866,9 @@ class Tab {
     // Populate the picker data using the given history item and the current top
     // WebView.
     private void populatePickerData(WebHistoryItem item) {
-        if (item != null && !TextUtils.isEmpty(item.getUrl())) {
+        if (item == null || TextUtils.isEmpty(item.getUrl())) {
+            Log.w(LOGTAG, "populatePickerData called with a null WebHistoryItem");
+        } else {
             mPickerData = new PickerData();
             mPickerData.mUrl = item.getUrl();
             mPickerData.mTitle = item.getTitle();
