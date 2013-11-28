@@ -220,17 +220,18 @@ public class BrowserActivity extends Activity
         mCustomViewContainer = (FrameLayout) mBrowserFrameLayout
                 .findViewById(R.id.fullscreen_custom_content);
         frameLayout.addView(mBrowserFrameLayout, COVER_SCREEN_PARAMS);
-        mTitleBar = new TitleBar(this);
         mXLargeScreenSize = (getResources().getConfiguration().screenLayout
                 & Configuration.SCREENLAYOUT_SIZE_MASK)
                 == Configuration.SCREENLAYOUT_SIZE_XLARGE;
         if (mXLargeScreenSize) {
+            mTitleBar = new TitleBarXLarge(this);
             LinearLayout layout = (LinearLayout) mBrowserFrameLayout.
                     findViewById(R.id.vertical_layout);
             layout.addView(mTitleBar, 0, new LinearLayout.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT,
                     ViewGroup.LayoutParams.WRAP_CONTENT));
         } else {
+            mTitleBar = new TitleBar(this);
             // mTitleBar will be always be shown in the fully loaded mode on
             // phone
             mTitleBar.setProgress(100);
@@ -1362,14 +1363,7 @@ public class BrowserActivity extends Activity
                 break;
 
             case R.id.add_bookmark_menu_id:
-                Intent i = new Intent(BrowserActivity.this,
-                        AddBookmarkPage.class);
-                WebView w = getTopWindow();
-                i.putExtra("url", w.getUrl());
-                i.putExtra("title", w.getTitle());
-                i.putExtra("touch_icon_url", w.getTouchIconUrl());
-                i.putExtra("thumbnail", createScreenshot(w));
-                startActivity(i);
+                bookmarkCurrentPage();
                 break;
 
             case R.id.stop_reload_menu_id:
@@ -1502,6 +1496,17 @@ public class BrowserActivity extends Activity
         return true;
     }
 
+    /* package */ void bookmarkCurrentPage() {
+        Intent i = new Intent(BrowserActivity.this,
+                AddBookmarkPage.class);
+        WebView w = getTopWindow();
+        i.putExtra("url", w.getUrl());
+        i.putExtra("title", w.getTitle());
+        i.putExtra("touch_icon_url", w.getTouchIconUrl());
+        i.putExtra("thumbnail", createScreenshot(w));
+        startActivity(i);
+    }
+
     private boolean dialogIsUp() {
         return null != mFindDialog && mFindDialog.isVisible() ||
             null != mSelectDialog && mSelectDialog.isVisible();
@@ -1627,7 +1632,7 @@ public class BrowserActivity extends Activity
     @Override
     public void onCreateContextMenu(ContextMenu menu, View v,
             ContextMenuInfo menuInfo) {
-        if (v instanceof TitleBar) {
+        if (v instanceof TitleBarBase) {
             return;
         }
         WebView webview = (WebView) v;
@@ -4054,7 +4059,7 @@ public class BrowserActivity extends Activity
 
     private Toast mStopToast;
 
-    private TitleBar mTitleBar;
+    private TitleBarBase mTitleBar;
 
     private LinearLayout mErrorConsoleContainer = null;
     private boolean mShouldShowErrorConsole = false;
