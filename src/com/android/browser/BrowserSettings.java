@@ -246,6 +246,9 @@ class BrowserSettings extends Observable {
             s.setNeedInitialFocus(false);
             // Browser supports multiple windows
             s.setSupportMultipleWindows(true);
+            // enable smooth transition for better performance during panning or
+            // zooming
+            s.setEnableSmoothTransition(true);
             // disable content url access
             s.setAllowContentAccess(false);
 
