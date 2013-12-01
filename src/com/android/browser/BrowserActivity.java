@@ -2649,6 +2649,18 @@ public class BrowserActivity extends Activity
         }
     }
 
+    private void closeEmptyChildTab() {
+        Tab current = mTabControl.getCurrentTab();
+        if (current != null
+                && current.getWebView().copyBackForwardList().getSize() == 0) {
+            Tab parent = current.getParentTab();
+            if (parent != null) {
+                switchToTab(mTabControl.getTabIndex(parent));
+                closeTab(current);
+            }
+        }
+    }
+
     boolean shouldOverrideUrlLoading(WebView view, String url) {
         if (url.startsWith(SCHEME_WTAI)) {
             // wtai://wp/mc;number
@@ -2658,6 +2670,11 @@ public class BrowserActivity extends Activity
                         Uri.parse(WebView.SCHEME_TEL +
                         url.substring(SCHEME_WTAI_MC.length())));
                 startActivity(intent);
+                // before leaving BrowserActivity, close the empty child tab.
+                // If a new tab is created through JavaScript open to load this
+                // url, we would like to close it as we will load this url in a
+                // different Activity.
+                closeEmptyChildTab();
                 return true;
             }
             // wtai://wp/sd;dtmf
@@ -2700,6 +2717,11 @@ public class BrowserActivity extends Activity
                         .parse("market://search?q=pname:" + packagename));
                 intent.addCategory(Intent.CATEGORY_BROWSABLE);
                 startActivity(intent);
+                // before leaving BrowserActivity, close the empty child tab.
+                // If a new tab is created through JavaScript open to load this
+                // url, we would like to close it as we will load this url in a
+                // different Activity.
+                closeEmptyChildTab();
                 return true;
             } else {
                 return false;
@@ -2712,6 +2734,11 @@ public class BrowserActivity extends Activity
         intent.setComponent(null);
         try {
             if (startActivityIfNeeded(intent, -1)) {
+                // before leaving BrowserActivity, close the empty child tab.
+                // If a new tab is created through JavaScript open to load this
+                // url, we would like to close it as we will load this url in a
+                // different Activity.
+                closeEmptyChildTab();
                 return true;
             }
         } catch (ActivityNotFoundException ex) {
@@ -3104,7 +3131,10 @@ public class BrowserActivity extends Activity
      * Update the lock icon to correspond to our latest state.
      */
     private void updateLockIconToLatest() {
-        updateLockIconImage(mTabControl.getCurrentTab().getLockIconType());
+        Tab t = mTabControl.getCurrentTab();
+        if (t != null) {
+            updateLockIconImage(t.getLockIconType());
+        }
     }
 
     /**
