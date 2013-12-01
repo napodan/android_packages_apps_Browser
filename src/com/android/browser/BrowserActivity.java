@@ -2106,6 +2106,7 @@ public class BrowserActivity extends Activity
         }
         mTabControl.setCurrentTab(mTabControl.getTab(currentIndex));
         resetTitleIconAndProgress();
+        updateLockIconToLatest();
     }
 
     /* package */ void goBackOnePageOrQuit() {
