@@ -85,6 +85,16 @@
                 <data android:mimeType="application/xhtml+xml"/>
                 <data android:mimeType="application/vnd.wap.xhtml+xml"/>
             </intent-filter>
+            <!-- For viewing saved web archives. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="http" />
+                <data android:scheme="https" />
+                <data android:scheme="file" />
+                <data android:mimeType="application/x-webarchive-xml"/>
+            </intent-filter>
             <!-- We are also the main entry point of the browser. -->
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -183,6 +193,10 @@
                 <category android:name="android.intent.category.DEFAULT" />
                 <data android:mimeType="vnd.android.cursor.dir/bookmark"/>
             </intent-filter>
+        </activity>
+
+        <activity android:name="SaveToHomescreenDialog" android:label="Save to homescreen" android:theme="@android:style/Theme.Dialog"
+                  android:configChanges="orientation|keyboardHidden" android:windowSoftInputMode="stateHidden">
         </activity>
 
         <!--receiver android:name=".widget.BookmarkWidgetProvider" android:label="@string/bookmarks">

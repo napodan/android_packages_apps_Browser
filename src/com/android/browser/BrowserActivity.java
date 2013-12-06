@@ -125,6 +125,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.Vector;
 
 public class BrowserActivity extends Activity
     implements View.OnCreateContextMenuListener, DownloadListener {
@@ -1405,6 +1406,23 @@ public class BrowserActivity extends Activity
                 showFindDialog();
                 break;
 
+            case R.id.save_webarchive_menu_id:
+                if (LOGD_ENABLED) {
+                    Log.d(LOGTAG, "Save as Web Archive");
+                }
+                String directory = getExternalFilesDir(null).getAbsolutePath() + File.separator;
+                getTopWindow().saveWebArchive(directory, true, new ValueCallback<String>() {
+                    @Override
+                    public void onReceiveValue(String value) {
+                        if (value != null) {
+                            Toast.makeText(BrowserActivity.this, R.string.webarchive_saved, Toast.LENGTH_SHORT).show();
+                        } else {
+                            Toast.makeText(BrowserActivity.this, R.string.webarchive_failed, Toast.LENGTH_SHORT).show();
+                        }
+                    }
+                });
+                break;
+
             case R.id.page_info_menu_id:
                 showPageInfo(mTabControl.getCurrentTab(), false);
                 break;
@@ -1489,6 +1507,7 @@ public class BrowserActivity extends Activity
         i.putExtra("touch_icon_url", w.getTouchIconUrl());
         i.putExtra("thumbnail", createScreenshot(w, getDesiredThumbnailWidth(this),
                 getDesiredThumbnailHeight(this)));
+        i.putExtra("url_editable", false);
         startActivity(i);
     }
 
@@ -2284,6 +2303,8 @@ public class BrowserActivity extends Activity
 
     static final int UPDATE_BOOKMARK_THUMBNAIL       = 108;
 
+    private static final int TOUCH_ICON_DOWNLOADED   = 109;
+
     // Private handler for handling javascript and saving passwords
     private Handler mHandler = new Handler() {
 
@@ -2353,6 +2374,14 @@ public class BrowserActivity extends Activity
                     if (view != null) {
                         updateScreenshot(view);
                     }
+                    break;
+
+                case TOUCH_ICON_DOWNLOADED:
+                    Bundle b = msg.getData();
+                    showSaveToHomescreenDialog(b.getString("url"),
+                        b.getString("title"),
+                        (Bitmap) b.getParcelable("touchIcon"),
+                        (Bitmap) b.getParcelable("favicon"));
                     break;
             }
         }
@@ -2856,17 +2885,25 @@ public class BrowserActivity extends Activity
     void openFileChooser(ValueCallback<Uri> uploadMsg, String acceptType) {
 
         final String imageMimeType = "image/*";
-        final String imageSourceKey = "source";
-        final String imageSourceValueCamera = "camera";
-        final String imageSourceValueGallery = "gallery";
+        final String videoMimeType = "video/*";
+        final String mediaSourceKey = "capture";
+        final String mediaSourceValueCamera = "camera";
+        final String mediaSourceValueFileSystem = "filesystem";
+        final String mediaSourceValueCamcorder = "camcorder";
 
-        // image source can be 'gallery' or 'camera'.
-        String imageSource = "";
+        // media source can be 'gallery' or 'camera' or 'camcorder'
+        String mediaSource = "";
 
-        // We add the camera intent if there was no accept type (or '*/*') or 'image/*'.
+        // We add the camera intent if there was no accept type (or '*/*' or 'image/*').
         boolean addCameraIntent = true;
+        // We add the camcorder intent if there was no accept type (or '*/*' or 'video/*').
+        boolean addCamcorderIntent = true;
 
-        if (mUploadMessage != null) return;
+        if (mUploadMessage != null) {
+            // Already a file picker operation in progress.
+            return;
+        }
+
         mUploadMessage = uploadMsg;
 
         // Parse the accept type.
@@ -2877,8 +2914,8 @@ public class BrowserActivity extends Activity
             String[] keyValue = p.split("=");
             if (keyValue.length == 2) {
                 // Process key=value parameters.
-                if (imageSourceKey.equals(keyValue[0])) {
-                    imageSource = keyValue[1];
+                if (mediaSourceKey.equals(keyValue[0])) {
+                    mediaSource = keyValue[1];
                 }
             }
         }
@@ -2902,30 +2939,57 @@ public class BrowserActivity extends Activity
                 System.currentTimeMillis() + ".jpg";
         cameraIntent.putExtra(MediaStore.EXTRA_OUTPUT, Uri.fromFile(new File(mCameraFilePath)));
 
+        Intent camcorderIntent = new Intent(MediaStore.ACTION_VIDEO_CAPTURE);
+
         if (mimeType.equals(imageMimeType)) {
             i.setType(imageMimeType);
-            if (imageSource.equals(imageSourceValueCamera)) {
+            addCamcorderIntent = false;
+            if (mediaSource.equals(mediaSourceValueCamera)) {
                 // Specified 'image/*' and requested the camera, so go ahead and launch the camera
                 // directly.
                 BrowserActivity.this.startActivityForResult(cameraIntent, FILE_SELECTED);
                 return;
-            } else if (imageSource.equals(imageSourceValueGallery)) {
-                // Specified gallery as the source, so don't want to consider the camera.
+            } else if (mediaSource.equals(mediaSourceValueFileSystem)) {
+                // Specified filesytem as the source, so don't want to consider the camera.
                 addCameraIntent = false;
+            }
+        } else if (mimeType.equals(videoMimeType)) {
+            i.setType(videoMimeType);
+            addCameraIntent = false;
+            // The camcorder saves it's own file and returns it to us in the intent, so
+            // we don't need to generate one here.
+            mCameraFilePath = null;
+
+            if (mediaSource.equals(mediaSourceValueCamcorder)) {
+                // Specified 'video/*' and requested the camcorder, so go ahead and launch the camcorder
+                // directly.
+                BrowserActivity.this.startActivityForResult(camcorderIntent, FILE_SELECTED);
+                return;
+            } else if (mediaSource.equals(mediaSourceValueFileSystem)) {
+                // Specified filesystem as the source, so don't want to consider the camcorder.
+                addCamcorderIntent = false;
             }
         } else {
             i.setType("*/*");
         }
 
-        // Combine the chooser and the extra choices (like camera)
+        // Combine the chooser and the extra choices (like camera or camcorder)
         Intent chooser = new Intent(Intent.ACTION_CHOOSER);
         chooser.putExtra(Intent.EXTRA_INTENT, i);
 
+        Vector<Intent> extraInitialIntents = new Vector<Intent>(0);
+
         if (addCameraIntent) {
-            // Add the camera Intent
-            Intent[] choices = new Intent[1];
-            choices[0] = cameraIntent;
-            chooser.putExtra(Intent.EXTRA_INITIAL_INTENTS, choices);
+            extraInitialIntents.add(cameraIntent);
+        }
+
+        if (addCamcorderIntent) {
+            extraInitialIntents.add(camcorderIntent);
+        }
+
+        if (extraInitialIntents.size() > 0) {
+            Intent[] extraIntents = new Intent[extraInitialIntents.size()];
+            chooser.putExtra(Intent.EXTRA_INITIAL_INTENTS, extraInitialIntents.toArray(extraIntents));
         }
 
         chooser.putExtra(Intent.EXTRA_TITLE, getString(R.string.choose_upload));
@@ -3667,7 +3731,6 @@ public class BrowserActivity extends Activity
                         sendBroadcast(new Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE, result));
                     }
                 }
-
                 mUploadMessage.onReceiveValue(result);
                 mUploadMessage = null;
                 mCameraFilePath = null;
@@ -3686,6 +3749,47 @@ public class BrowserActivity extends Activity
     private void viewDownloads() {
         Intent intent = new Intent(DownloadManager.ACTION_VIEW_DOWNLOADS);
         startActivity(intent);
+    }
+
+    /* package*/ void promptAddOrInstallBookmark() {
+        final Tab current = mTabControl.getCurrentTab();
+        Resources resources = getResources();
+        CharSequence[] choices = {
+                resources.getString(R.string.save_to_bookmarks),
+                resources.getString(R.string.create_shortcut_bookmark)
+        };
+
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle(R.string.add_new_bookmark);
+        builder.setItems(choices, new DialogInterface.OnClickListener() {
+                public void onClick(DialogInterface dialog, int item) {
+                    if (item == 0) {
+                        bookmarkCurrentPage();
+                    } else if (item == 1) {
+                        current.populatePickerData();
+                        String touchIconUrl = mTabControl.getCurrentWebView().getTouchIconUrl();
+                        if (touchIconUrl != null) {
+                            // Download the touch icon for this site then save it to the
+                            // homescreen.
+                            Bundle b = new Bundle();
+                            b.putString("url", current.getUrl());
+                            b.putString("title", current.getTitle());
+                            b.putParcelable("favicon", current.getFavicon());
+                            Message msg = mHandler.obtainMessage(TOUCH_ICON_DOWNLOADED);
+                            msg.setData(b);
+                            new DownloadTouchIcon(msg,
+                                    mTabControl.getCurrentWebView().getSettings()
+                                    .getUserAgentString()).execute(touchIconUrl);
+                        } else {
+                            // add to homescreen, can do it immediately as there is no touch
+                            // icon.
+                            showSaveToHomescreenDialog(current.getUrl(), current.getTitle(),
+                                    null, current.getFavicon());
+                        }
+                     }
+                 }
+        });
+        builder.create().show();
     }
 
     /**
@@ -3730,6 +3834,33 @@ public class BrowserActivity extends Activity
         }
         startActivityForResult(intent, COMBO_PAGE);
     }
+
+    private void showSaveToHomescreenDialog(String url, String title, Bitmap touchIcon,
+            Bitmap favicon) {
+        Intent intent = new Intent(this, SaveToHomescreenDialog.class);
+
+        // Just in case the user tries to save before a page finishes loading
+        // so the current history item, and therefore the page, is null.
+        if (null == url) {
+            url = mLastEnteredUrl;
+            // This can happen.
+            if (null == url) {
+                url = mSettings.getHomePage();
+            }
+        }
+
+        // In case the web page has not yet received its associated title.
+        if (title == null) {
+            title = url;
+        }
+
+        intent.putExtra("title", title);
+        intent.putExtra("url", url);
+        intent.putExtra("favicon", favicon);
+        intent.putExtra("touchIcon", touchIcon);
+        startActivity(intent);
+    }
+
 
     // Called when loading from context menu or LOAD_URL message
     private void loadUrlFromContext(WebView view, String url) {
